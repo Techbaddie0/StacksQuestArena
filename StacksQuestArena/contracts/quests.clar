@@ -38,6 +38,9 @@
 (define-constant ERR-USERNAME-TAKEN u102)
 (define-constant ERR-CHARACTER-NOT-FOUND u103)
 (define-constant ERR-NOT-OWNER u104)
+(define-constant ERR-INVALID-HEALTH u200)
+(define-constant ERR-INVALID-ATTACK u201)
+(define-constant ERR-INVALID-DEFENSE u202)
 
 ;; Read-only functions
 
@@ -122,33 +125,43 @@
     ;; Check if player is registered
     (if (is-none player-info)
       (err ERR-NOT-REGISTERED)
-      (begin
-        ;; Create new character
-        (map-set characters 
-          {id: next-id} 
-          {
-            owner: caller,
-            name: name,
-            health: health,
-            attack: attack,
-            defense: defense,
-            created-at: block-height,
-            level: u1
-          }
-        )
-        
-        ;; Update player's character count
-        (map-set players 
-          {wallet: caller} 
-          (merge (unwrap-panic player-info)
-                 {character-count: (+ u1 (get character-count (unwrap-panic player-info)))}
+      ;; Validate input parameters
+      (if (or (< health u10) (> health u100))
+        (err ERR-INVALID-HEALTH)
+        (if (or (< attack u5) (> attack u50))
+          (err ERR-INVALID-ATTACK)
+          (if (or (< defense u5) (> defense u50))
+            (err ERR-INVALID-DEFENSE)
+            (begin
+              ;; Create new character with validated inputs
+              (map-set characters 
+                {id: next-id} 
+                {
+                  owner: caller,
+                  name: name,
+                  health: health,
+                  attack: attack,
+                  defense: defense,
+                  created-at: block-height,
+                  level: u1
+                }
+              )
+              
+              ;; Update player's character count
+              (map-set players 
+                {wallet: caller} 
+                (merge (unwrap-panic player-info)
+                       {character-count: (+ u1 (get character-count (unwrap-panic player-info)))}
+                )
+              )
+              
+              ;; Increment next character ID
+              (var-set next-character-id (+ next-id u1))
+              
+              (ok next-id)
+            )
           )
         )
-        
-        ;; Increment next character ID
-        (var-set next-character-id (+ next-id u1))
-        
-        (ok next-id)
       )
     )
   )
